@@ -1,0 +1,130 @@
+---
+title: "Credit Card Transaction Analysis: Gender-Based Spending Patterns"
+author:
+ 
+date: "2023-11-28"
+output:
+  pdf_document: 
+     
+     toc: true
+     toc_depth: 1
+     number_sections: true
+     
+  html_document:
+    
+    toc: true
+    toc_float: true
+---
+
+\newpage
+\maketitle
+\thispagestyle{empty}
+\clearpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(knitr)
+
+# Set working directory for project
+# Update the file path as per your system
+
+#setwd("C:/path/to/your/project/folder")
+
+# Load necessary libraries
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(EnvStats)
+library(BSDA)
+library(DescTools)
+library(tidyr)
+library(knitr)
+library(lubridate)
+
+# Read the dataset
+credit_card_data <- read.csv("./data/credit_card_transaction_flow-latest.csv")
+
+# Display the first few rows of the dataframe
+head(credit_card_data)
+
+# Get the structure and summary statistics of the dataframe
+str(credit_card_data)
+summary(credit_card_data)
+
+# Convert 'Birthdate' column to Date format
+credit_card_data$Birthdate <- as.Date(credit_card_data$Birthdate)
+
+# Calculate 'Age' from 'Birthdate'
+credit_card_data <- credit_card_data %>%
+  mutate(Age = interval(Birthdate, Sys.Date()) %/% years(1))
+
+# Function to calculate age
+calculate_age <- function(birthdate) {
+  current_year <- 2023
+  age <- current_year - as.numeric(format(birthdate, "%Y"))
+  return(age)
+}
+
+credit_card_data$Age <- calculate_age(credit_card_data$Birthdate)
+
+# Plotting: Distribution of Transaction Amount
+ggplot(credit_card_data, aes(x = Transaction.Amount)) +
+  geom_histogram(binwidth = 50, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Transaction Amount", x = "Transaction Amount", y = "Frequency") +
+  theme_minimal()
+
+# Plotting: Total Transaction Amount by Category
+ggplot(credit_card_data, aes(x = Category, y = Transaction.Amount, fill = Category)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Transaction Amount by Category", x = "Category", y = "Total Amount") +
+  theme_minimal()
+
+# Calculate total amounts by category for pie chart
+category_totals <- credit_card_data %>%
+  group_by(Category) %>%
+  summarize(Total_Transaction.Amount = sum(Transaction.Amount))
+
+category_totals <- category_totals %>%
+  mutate(Percentage = Total_Transaction.Amount / sum(Total_Transaction.Amount) * 100)
+
+# Plot: Proportion of Spending in Different Categories
+ggplot(category_totals, aes(x = "", y = Percentage, fill = Category)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y") +
+  labs(title = "Proportion of Spending in Different Categories") +
+  theme_minimal() +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), position = position_stack(vjust = 0.5), color = "black", size = 3)
+
+# Plotting: Total Spending Comparison Between Women and Men (Pie Chart)
+ggplot(credit_card_data, aes(x = "", fill = Gender)) +
+  geom_bar(width = 1) +
+  geom_text(aes(label = sprintf("%.1f%%", (..count..)/sum(..count..) * 100)), stat = "count", position = position_stack(vjust = 0.5)) +
+  coord_polar("y") +
+  labs(title = "Total Spending Comparison Between Women and Men", fill = "Gender") +
+  theme_minimal()
+
+# Gender-wise Spending by Category (Bar Plot)
+ggplot(credit_card_data, aes(x = Category, y = Transaction.Amount, fill = Category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Gender, scales = "free_y") +
+  labs(title = "Total Transaction Amount by Category", x = "Category", y = "Total Amount") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Chi-Square Test: Association between Gender and Spending Category
+contingency_table <- table(credit_card_data$Gender, credit_card_data$Category)
+chi_square_result <- chisq.test(contingency_table)
+print(chi_square_result)
+
+# T-Test: Comparing Mean Transaction Amounts by Gender
+t_test_result <- t.test(Transaction.Amount ~ Gender, data = credit_card_data)
+print(t_test_result)
+
+# Save output plots and tables (optional)
+# You can save any of your plots or results as follows:
+ ggsave("./output/transaction_distribution.png")
+ write.csv(credit_card_data, "./output/processed_credit_card_data.csv")
+
+```
+
